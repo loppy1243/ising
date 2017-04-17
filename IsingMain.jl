@@ -18,7 +18,7 @@ const TRANS = 50000
 const TRANS_PER_SEC = 50
 
 function main()
-    init_sg = SpinGrid(SPIN_DOWN, 20, 20)
+    init_sg = SpinGrid(SPIN_DOWN, 10, 10)
     sg = copy(init_sg)
     states = Array{Nullable{NTuple{2, Int}}, 1}(TRANS+1)
     states[1] = Nullable{NTuple{2, Int}}()
@@ -49,10 +49,12 @@ function main()
     end
     println("Done.")
 
+    ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pix_fmt rgba
+                     -s $(size(init_sg, 2))x$(size(init_sg, 1)) -framerate $(TRANS_PER_SEC)
+                     -i $(OUT_FILE).raw -frames $(TRANS+1) -f h264 -r 24 -y $(OUT_FILE).mp4`
+
     println("Converting to h264...")
-    run(`ffmpeg -loglevel warning -f rawvideo -pix_fmt rgba -s $(size(init_sg, 2))x$(size(init_sg, 1))
-                -framerate $(TRANS_PER_SEC) -i $(OUT_FILE).raw -frames $(TRANS+1) -f h264 -r 24
-                -y $(OUT_FILE).mp4`)
+    run(ffmpeg)
     println("Done.")
 end
 
