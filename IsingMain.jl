@@ -13,18 +13,33 @@ module IsingMain
 include("Ising.jl")
 using .Ising
 
-const OUT_FILE = "sim"
-const TRANS = 200000
-const TRANS_PER_SEC = 100
+immutable Simulation
+    init::SpinGrid
+    flips::Array{Nullable{NTuple{2, Int}}, 1}
+end
 
 function main()
-    init_sg = SpinGrid(SPIN_DOWN, 120, 120)
+    print("Running simulation... ")
+    sim = rangedβ(100, 100, linspace(0.01, 1, 50000))
+    println("Done.")
+
+    print("Writing raw video to file... ")
+    write("sim.raw", sim)
+    println("Done.")
+
+    println("Rendering video...")
+    render(sim, 100, "sim.raw", "sim.mp4")
+    println("Done.")
+end
+
+function constantβ(isize::Int, jsize::Int, β::Number, trans::Int;
+                   initspin::Spin=SPIN_DOWN, J::Number=1.0)
+    init_sg = SpinGrid(initspin, isize, jsize)
     sg = copy(init_sg)
-    states = Array{Nullable{NTuple{2, Int}}, 1}(TRANS+1)
+    states = Array{Nullable{NTuple{2, Int}}, 1}(trans+1)
     states[1] = Nullable{NTuple{2, Int}}()
 
-    print("Running simulation... ")
-    for i = 1:TRANS
+    for i = 1:trans
         pos = ind2sub(sg, rand(1:endof(sg)))
         aff = spinflipaff(sg, pos...)
 
@@ -35,27 +50,49 @@ function main()
             Nullable{NTuple{2, Int}}()
         end
     end
-    println("Done.")
 
-    print("Writing raw video file... ")
-    open("sim.raw", "w") do out
-        for s in states
-            if !isnull(s)
-                flipspin(init_sg, get(s)...)
-            end
+    Simulation(init_sg, states)
+end
 
-            write(out, init_sg)
+function rangedβ(isize::Int, jsize::Int, iter; initspin::Spin=SPIN_DOWN, J::Number=1.0)
+    init_sg = SpinGrid(initspin, isize, jsize)
+    sg = copy(init_sg)
+    states = Array{Nullable{NTuple{2, Int}}, 1}(length(iter) + 1)
+    states[1] = Nullable{NTuple{2, Int}}()
+
+    for (i, β) in enumerate(iter)
+        pos = ind2sub(sg, rand(1:endof(sg)))
+        aff = spinflipaff(sg, β, J, pos...)
+
+        states[i+1] = if aff > 0 || rand() < exp(aff)
+            flipspin(sg, pos...)
+            Nullable(pos)
+        else
+            Nullable{NTuple{2, Int}}()
         end
     end
-    println("Done.")
 
-    ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pix_fmt rgba
-                     -s $(size(init_sg, 2))x$(size(init_sg, 1)) -framerate $(TRANS_PER_SEC)
-                     -i $(OUT_FILE).raw -frames $(TRANS+1) -f h264 -r 24 -y $(OUT_FILE).mp4`
+    Simulation(init_sg, states)
+end
 
-    println("Converting to h264...")
+function Base.write(stream::IO, sim::Simulation)
+    sg = copy(sim.init)
+
+    sum(sim.flips) do f
+        if !isnull(f)
+            flipspin(sg, get(f)...)
+        end
+    
+        write(stream, sg)
+    end
+end
+
+# tps -- Transitions per second.
+function render(sim::Simulation, tps::Int, infile::AbstractString, outfile::AbstractString)
+    ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pixel_format rgba
+                     -video_size $(size(sim.init, 2))x$(size(sim.init, 1)) -framerate $(tps)
+                     -i $(infile) -frames $(length(sim.flips)) -f h264 -r 24 -y $(outfile)`
     run(ffmpeg)
-    println("Done.")
 end
 
 end # IsingMain

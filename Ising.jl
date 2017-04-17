@@ -3,10 +3,6 @@ using Unitful
 export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, logprob,
        spinflipaff
 
-# Inverse temperature of the system.
-const INV_TEMP = 1.0u"1/eV"
-# Interaction strength of the system (assuming interactions are homogenous and isotropic).
-const INT_STR = 1e0u"eV"
 const SPIN_UP = true
 const SPIN_DOWN = false
 const NEIGH_SIZE = 6
@@ -123,7 +119,7 @@ function Base.done(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
     state[2] > iter.ending[2]
 end
 
-function hamil(sg::SpinGrid)
+function hamil(sg::SpinGrid, J::Number)
     visited = falses(size(sg))
 
     sum = 0.0
@@ -142,24 +138,24 @@ function hamil(sg::SpinGrid)
         visited[i] = true
     end
 
-    -INT_STR*sum
+    -J*sum
 end
 
-function localhamil(sg::SpinGrid, i::Int, j::Int)
-    -INT_STR * sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
+function localhamil(sg::SpinGrid, J::Number, i::Int, j::Int)
+    -J * sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
         sg[i, j] $ sg[ixs...]
     end
 end
 
 logprob(sg::SpinGrid) = -INV_TEMP*hamil(sg)
 
-function spinflipaff(sg::SpinGrid, i::Int, j::Int)
-    h1 = localhamil(sg, i, j)
+function spinflipaff(sg::SpinGrid, β::Number, J::Number, i::Int, j::Int)
+    h1 = localhamil(sg, J, i, j)
     flipspin(sg, i, j)
-    h2 = localhamil(sg, i, j)
+    h2 = localhamil(sg, J, i, j)
     flipspin(sg, i, j)
 
-    -INV_TEMP*(h2 - h1)
+    -β*(h2 - h1)
 end
 
 end # Ising
