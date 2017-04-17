@@ -4,12 +4,12 @@ export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, fli
        spinflipaff
 
 # Inverse temperature of the system.
-const INV_TEMP = 0.5u"1/eV"
+const INV_TEMP = 1.0u"1/eV"
 # Interaction strength of the system (assuming interactions are homogenous and isotropic).
 const INT_STR = 1e0u"eV"
 const SPIN_UP = true
 const SPIN_DOWN = false
-const NEIGH_SIZE = 3
+const NEIGH_SIZE = 6
 
 typealias Spin Bool
 
@@ -95,10 +95,11 @@ immutable NeighborhoodIndexIter
     current::NTuple{2, Int}
     start::NTuple{2, Int}
     ending::NTuple{2, Int}
+    n::Int
 end
 
 function neighborhood(sg::SpinGrid, i::Int, j::Int, n::Int)
-    NeighborhoodIndexIter(sg, (i, j), (i-n, j-n), (i+n, j+n))
+    NeighborhoodIndexIter(sg, (i, j), (i-n, j-n), (i+n, j+n), n)
 end
 
 function Base.start(iter::NeighborhoodIndexIter)
@@ -106,16 +107,15 @@ function Base.start(iter::NeighborhoodIndexIter)
 end
 
 function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
-    next_state = if state[1] < iter.ending[1]
-        (state[1] + 1, state[2])
+    h = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
+    if state != iter.current && h <= iter.n
+        (modindex(iter.grid, state...), (state[1] + 1, state[2]))
+    elseif state[1] > iter.current[1]
+        next(iter, (iter.start[1], state[2] + 1))
+    elseif state[2] <= iter.ending[2]
+        next(iter, (state[1] + 1, state[2]))
     else
-        (iter.start[1], state[2] + 1)
-    end
-
-    if state == iter.current
-        next(iter, next_state)
-    else
-        (modindex(iter.grid, state...), next_state)
+        ((0, 0), (0, state[2]))
     end
 end
 

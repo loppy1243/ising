@@ -18,7 +18,7 @@ const TRANS = 200000
 const TRANS_PER_SEC = 100
 
 function main()
-    init_sg = SpinGrid(SPIN_DOWN, 30, 30)
+    init_sg = SpinGrid(SPIN_DOWN, 120, 120)
     sg = copy(init_sg)
     states = Array{Nullable{NTuple{2, Int}}, 1}(TRANS+1)
     states[1] = Nullable{NTuple{2, Int}}()
