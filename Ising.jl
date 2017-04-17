@@ -4,7 +4,7 @@ export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, fli
        spinflipaff
 
 # Inverse temperature of the system.
-const INV_TEMP = 0.3u"1/eV"
+const INV_TEMP = 0.5u"1/eV"
 # Interaction strength of the system (assuming interactions are homogenous and isotropic).
 const INT_STR = 1e0u"eV"
 const SPIN_UP = true
@@ -27,7 +27,11 @@ function (::Type{SpinGrid})(s::Spin, isize::Int, jsize::Int)
     SpinGrid(spinup(s) ? trues(isize, jsize) : falses(isize, jsize))
 end
 
-Base.convert(::Type{SpinGrid}, a::AbstractArray{Bool, 2}) = SpinGrid(convert(BitArray{2}, a))
+# For some reason having this uncommented causes it to be called and makes the code slower...?
+#function Base.convert(::Type{SpinGrid}, a::AbstractArray{Bool, 2})
+#    display(stacktrace())
+#    SpinGrid(convert(BitArray{2}, a))
+#end
 Base.show(sg::SpinGrid) = show(sg.array)
 Base.display(sg::SpinGrid) = display(sg.array)
 
@@ -59,23 +63,24 @@ function Base.write(stream::IO, sg::SpinGrid)
     end
 end
 
-function modindex{N}(dims::NTuple{N, Int}, ixs::Vararg{Int, N})
-    jxs = Array{Int, 1}(N)
+@generated function modindex{N}(dims::NTuple{N, Int}, ixs::Vararg{Int, N})
+    js(i) = :(mod(ixs[$i], dims[$i]))
 
-    for i = 1:N
-        j = mod(ixs[i], dims[i])
-        jxs[i] = j == 0 ? dims[i] : j
+    quote
+        tuple($((:($(js(i)) == 0 ? dims[$i] : $(js(i))) for i = 1:N)...))
     end
-
-    (jxs...)
 end
 
 function modindex{T, N}(a::AbstractArray{T, N}, ixs::Vararg{Int, N})
     modindex(size(a), ixs...)
 end
 
-function modgetindex{T, N}(a::AbstractArray{T, N}, ixs::Vararg{Int, N})
-    a[modindex(a, ixs...)...]
+@generated function modgetindex{T, N}(a::AbstractArray{T, N}, ixs::Vararg{Int, N})
+    js(i) = :(mod(ixs[$i], size(a, $i)))
+
+    quote
+        a[$((:($(js(i)) == 0 ? size(a, $i) : $(js(i))) for i = 1:N)...)]
+    end
 end
 
 #modindex{N}(x, ixs::NTuple{N, Int}) = modindex(x, ixs...)
