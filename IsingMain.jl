@@ -15,41 +15,44 @@ using .Ising
 
 const OUT_FILE = "sim"
 const TRANS = 50000
-const TRANS_PER_SEC = 100 
+const TRANS_PER_SEC = 50
 
 function main()
-    sg = SpinGrid(SPIN_DOWN, 10, 10)
-    states = Array{SpinGrid, 1}(TRANS+1)
-    states[1] = sg
+    init_sg = SpinGrid(SPIN_DOWN, 20, 20)
+    sg = copy(init_sg)
+    states = Array{Nullable{NTuple{2, Int}}, 1}(TRANS+1)
+    states[1] = Nullable{NTuple{2, Int}}()
 
     print("Running simulation... ")
     for i = 1:TRANS
-        println("Iteration: ", i)
         pos = ind2sub(sg, rand(1:endof(sg)))
         aff = spinflipaff(sg, pos...)
 
-        if aff > 0 || rand() < exp(aff)
+        states[i+1] = if aff > 0 || rand() < exp(aff)
             flipspin(sg, pos...)
+            Nullable(pos)
+        else
+            Nullable{NTuple{2, Int}}()
         end
-
-        states[i+1] = copy(sg)
     end
     println("Done.")
 
-    ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pix_fmt rgba
-                     -s $(size(sg, 2))x$(size(sg, 1)) -framerate $(TRANS_PER_SEC)
-                     -i $(OUT_FILE).mp4 -frames $(TRANS+1) -f h264 -r 24 -y $(OUT_FILE).mp4`
-
-    print("Writing raw video to file... ")
-    open("$(OUT_FILE).raw", "w") do out
+    print("Writing raw video file... ")
+    open("sim.raw", "w") do out
         for s in states
-            write(out, s)
+            if !isnull(s)
+                flipspin(init_sg, get(s)...)
+            end
+
+            write(out, init_sg)
         end
     end
     println("Done.")
 
-    println("Converting raw video to h264...")
-    run(ffmpeg)
+    println("Converting to h264...")
+    run(`ffmpeg -loglevel warning -f rawvideo -pix_fmt rgba -s $(size(init_sg, 2))x$(size(init_sg, 1))
+                -framerate $(TRANS_PER_SEC) -i $(OUT_FILE).raw -frames $(TRANS+1) -f h264 -r 24
+                -y $(OUT_FILE).mp4`)
     println("Done.")
 end
 
