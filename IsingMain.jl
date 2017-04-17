@@ -37,7 +37,7 @@ function main()
     println("Done.")
 
     ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pix_fmt rgba
-                     -s $(size(init_sg, 2))x$(size(init_sg, 1)) -framerate $(TRANS_PER_SEC)
+                     -s $(size(sg, 2))x$(size(sg, 1)) -framerate $(TRANS_PER_SEC)
                      -i $(OUT_FILE).mp4 -frames $(TRANS+1) -f h264 -r 24 -y $(OUT_FILE).mp4`
 
     print("Writing raw video to file... ")
