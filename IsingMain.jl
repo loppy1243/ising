@@ -18,10 +18,9 @@ const TRANS = 50000
 const TRANS_PER_SEC = 100 
 
 function main()
-    init_sg = SpinGrid(SPIN_DOWN, 10, 10)
-    sg = copy(init_sg)
-    states = Array{Nullable{NTuple{2, Int}}, 1}(TRANS+1)
-    states[1] = Nullable{NTuple{2, Int}}()
+    sg = SpinGrid(SPIN_DOWN, 10, 10)
+    states = Array{SpinGrid, 1}(TRANS+1)
+    states[1] = sg
 
     print("Running simulation... ")
     for i = 1:TRANS
@@ -29,12 +28,11 @@ function main()
         pos = ind2sub(sg, rand(1:endof(sg)))
         aff = spinflipaff(sg, pos...)
 
-        states[i+1] = if aff > 0 || rand() < exp(aff)
+        if aff > 0 || rand() < exp(aff)
             flipspin(sg, pos...)
-            Nullable(pos)
-        else
-            Nullable{NTuple{2, Int}}()
         end
+
+        states[i+1] = copy(sg)
     end
     println("Done.")
 
@@ -45,11 +43,7 @@ function main()
     print("Writing raw video to file... ")
     open("$(OUT_FILE).raw", "w") do out
         for s in states
-            if !isnull(s)
-                flipspin(init_sg, get(s)...)
-            end
-
-            write(out, init_sg)
+            write(out, s)
         end
     end
     println("Done.")
