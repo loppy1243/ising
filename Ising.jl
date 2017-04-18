@@ -1,7 +1,7 @@
 module Ising
 using Unitful
 export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, flipspin!,
-       spinflipaff
+       spinflipaff, MaybeRandomSpinGrid
 
 const SPIN_UP = true
 const SPIN_DOWN = false
@@ -37,6 +37,15 @@ end
 
 function RandomSpinGrid(s::Spin, p_spin::Number, isize::Int, jsize::Int)
     SpinGrid(rand(Bool) < p_spinup ? s : flipspin(s) for i = 1:isize, j = 1:jsize)
+end
+
+function MaybeRandomSpinGrid(s::Spin, p_spin=Nullable{Float64}(), isize::Int, jsize::Int)
+    if isnull(p_spin)
+        RandomSpinGrid(s, p_spin, isize, jsize)
+    else
+        SpinGrid(s, isize, jsize)
+    end
+
 end
 
 Base.copy(sg::SpinGrid) = SpinGrid(copy(sg.array))
