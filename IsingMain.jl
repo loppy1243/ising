@@ -15,6 +15,7 @@ using .Ising
 
 immutable Simulation
     init::SpinGrid
+    grid::SpinGrid
     flips::Array{Nullable{NTuple{2, Int}}, 1}
 end
 
@@ -32,47 +33,84 @@ function main()
     println("Done.")
 end
 
-function constantβ(isize::Int, jsize::Int, β::Number, trans::Int;
-                   initspin::Spin=SPIN_DOWN, J::Number=1.0)
-    init_sg = SpinGrid(initspin, isize, jsize)
-    sg = copy(init_sg)
+function (::Type{Simulation})(isize::Int, jsize::Int, trans::Int, initspin::Spin,
+                              p_spin::Nullable{Float64})
+    init_sg = if isnull(p_spinup)
+        SpinGrid(initspin, isize, jsize)
+    else
+        RandomSpinGrid(initspin, p_spin, isize, jsize)
+    end
     states = Array{Nullable{NTuple{2, Int}}, 1}(trans+1)
     states[1] = Nullable{NTuple{2, Int}}()
 
-    for i = 1:trans
-        pos = ind2sub(sg, rand(1:endof(sg)))
-        aff = spinflipaff(sg, pos...)
-
-        states[i+1] = if aff > 0 || rand() < exp(aff)
-            flipspin(sg, pos...)
-            Nullable(pos)
-        else
-            Nullable{NTuple{2, Int}}()
-        end
-    end
-
-    Simulation(init_sg, states)
+    Simulation(init_sg, copy(init_sg), states)
 end
 
-function rangedβ(isize::Int, jsize::Int, iter; initspin::Spin=SPIN_DOWN, J::Number=1.0)
-    init_sg = SpinGrid(initspin, isize, jsize)
-    sg = copy(init_sg)
-    states = Array{Nullable{NTuple{2, Int}}, 1}(length(iter) + 1)
+function (::Type{Simulation})(isize::Int, jsize::Int, initspin::Spin, p_spin::Nullable{Float64})
+    init_sg = if isnull(p_spinup)
+        SpinGrid(initspin, isize, jsize)
+    else
+        RandomSpinGrid(initspin, p_spin, isize, jsize)
+    end
+    states = Array{Nullable{NTuple{2, Int}}, 1}(1)
     states[1] = Nullable{NTuple{2, Int}}()
 
-    for (i, β) in enumerate(iter)
-        pos = ind2sub(sg, rand(1:endof(sg)))
-        aff = spinflipaff(sg, β, J, pos...)
+    Simulation(init_sg, copy(init_sg), states)
+end
 
-        states[i+1] = if aff > 0 || rand() < exp(aff)
-            flipspin(sg, pos...)
+function simulate!(sim::Simulation, trans::Int)
+    simulate!(x -> nothing, sim, trans)
+end
+
+function simulate!(f::Function, sim::Simulation, trans::Int)
+    for i = 1:trans
+        f(i)
+        s = rand(1:endof(sim.grid))
+        aff = spinflipaff(sg, β, J, s)
+
+        sim.flips[i+1] = if rand() < exp(aff)
+            flipspin!(sim.grid, s)
             Nullable(pos)
         else
             Nullable{NTuple{2, Int}}()
         end
     end
+end
 
-    Simulation(init_sg, states)
+function simulate!(f::Function, sim::Simulation, iter)
+    for (i, x) = enumerate(iter)
+        f(x)
+        s = rand(1:endof(sim.grid))
+        aff = spinflipaff(sg, β, J, s)
+
+        sim.flips[i+1] = if rand() < exp(aff)
+            flipspin!(sim.grid, s)
+            Nullable(pos)
+        else
+            Nullable{NTuple{2, Int}}()
+        end
+    end
+end
+
+function constantβ(isize::Int, jsize::Int, β::Number, trans::Int; initspin::Spin=SPIN_DOWN,
+                   J::Number=1.0, p_spin=Nullable{Float64}())
+    sim = Simulation(isize, jsize, trans, initspin, p_spin)
+    sg = copy(sim.init)
+
+    simulate!(sim, trans)
+    
+    sim
+end
+
+function rangedβ(isize::Int, jsize::Int, iter; initspin::Spin=SPIN_DOWN, J::Number=1.0,
+                 p_spin=Nullable{Float64}())
+    sim = Simulation(isize, jsize, trans, initspin, p_spin)
+
+    simulate!(sim, iter) do β
+        
+    end
+
+    sim
 end
 
 function Base.write(stream::IO, sim::Simulation)
@@ -80,7 +118,7 @@ function Base.write(stream::IO, sim::Simulation)
 
     sum(sim.flips) do f
         if !isnull(f)
-            flipspin(sg, get(f)...)
+            flipspin!(sg, get(f)...)
         end
     
         write(stream, sg)

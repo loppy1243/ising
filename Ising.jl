@@ -1,6 +1,6 @@
 module Ising
 using Unitful
-export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, logprob,
+export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, flipspin!,
        spinflipaff
 
 const SPIN_UP = true
@@ -35,8 +35,8 @@ function RandomSpinGrid(isize::Int, jsize::Int)
     SpinGrid(rand(Bool) for i = 1:isize, j = 1:jsize)
 end
 
-function RandomSpinGrid(p_spinup::Number, isize::Int, jsize::Int)
-    SpinGrid(rand(Bool) < p_spinup ? SPIN_UP : SPIN_DOWN for i = 1:isize, j = 1:jsize)
+function RandomSpinGrid(s::Spin, p_spin::Number, isize::Int, jsize::Int)
+    SpinGrid(rand(Bool) < p_spinup ? s : flipspin(s) for i = 1:isize, j = 1:jsize)
 end
 
 Base.copy(sg::SpinGrid) = SpinGrid(copy(sg.array))
@@ -47,7 +47,7 @@ function Base.setindex!(sg::SpinGrid, val::Spin, i::Int, j::Int)
 end
 
 flipspin(s::Spin) = !s
-flipspin(sg::SpinGrid, i::Int, j::Int) = (sg[i, j] = flipspin(sg[i, j]))
+flipspin!(sg::SpinGrid, i::Int, j::Int) = (sg[i, j] = flipspin(sg[i, j]))
 
 Base.size(sg::SpinGrid) = size(sg.array)
 Base.length(sg::SpinGrid) = length(sg.array)
@@ -151,9 +151,9 @@ logprob(sg::SpinGrid) = -INV_TEMP*hamil(sg)
 
 function spinflipaff(sg::SpinGrid, β::Number, J::Number, i::Int, j::Int)
     h1 = localhamil(sg, J, i, j)
-    flipspin(sg, i, j)
+    flipspin!(sg, i, j)
     h2 = localhamil(sg, J, i, j)
-    flipspin(sg, i, j)
+    flipspin!(sg, i, j)
 
     -β*(h2 - h1)
 end
