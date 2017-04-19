@@ -26,7 +26,7 @@ function main()
     print("Writing raw video to file... ")
     write("sim.raw", sim)
     println("Done.")
-
+ 
     println("Rendering video...")
     render(sim, 100, "sim.raw", "sim.mp4")
     println("Done.")
