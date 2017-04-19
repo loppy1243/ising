@@ -134,14 +134,17 @@ end
 
 function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
     h = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
-    if state != iter.current && h <= iter.n
-        (modindex(iter.grid, state...), (state[1] + 1, state[2]))
-    elseif state[1] > iter.current[1]
-        next(iter, (iter.start[1], state[2] + 1))
-    elseif state[2] <= iter.ending[2]
-        next(iter, (state[1] + 1, state[2]))
-    else
-        ((0, 0), (0, state[2]))
+
+    while true
+        if state != iter.current && h <= iter.n
+            return (modindex(iter.grid, state...), (state[1] + 1, state[2]))
+        elseif state[1] > iter.current[1]
+            state = (iter.start[1], state[2] + 1)
+        elseif state[2] <= iter.ending[2]
+            state = (state[1] + 1, state[2])
+        else
+            return ((0, 0), (0, state[2]))
+        end
     end
 end
 
