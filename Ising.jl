@@ -179,7 +179,7 @@ end
 function localhamil(sg::SpinGrid, J::Function, i::Int, j::Int)
     # Please don't forget the minus sign here.
     -(sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
-        (#=J(sg, i, j, ixs...) * =#(sg[i, j] $ sg[ixs...]))
+        (J(sg, i, j, ixs...) * (sg[i, j] $ sg[ixs...]))
     end)
 end
 
@@ -187,7 +187,7 @@ function localhamil(sg::SpinGrid, J::Function, ixl::Int)
     localhamil(sg, J, ind2sub(sg, ixl)...)
 end
 
-function hamildiff(sg::SpinGrid, J::Function, i::Int, j::Int)::Float64
+function hamildiff(sg::SpinGrid, J::Function, i::Int, j::Int)
     h1 = localhamil(sg, J, i, j)
     flipspin!(sg, i, j)
     h2 = localhamil(sg, J, i, j)

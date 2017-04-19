@@ -43,7 +43,7 @@ end
 
 function main()
     print("Running simulation... ")
-    sim = rangedβ(300, 300, 0.01:0.001:1)
+    sim = inverseJ(100, 100, -2, 1e-10, 150000)
     println("Done.")
 
     #print("Writing raw video to file... ")
@@ -57,10 +57,10 @@ end
 
 macro simulate!(sim)
     quote
-        simm = $sim
+        simm = ($sim)::Simulation
         for i = 2:endof(simm.trans)
             s = rand(1:endof(simm.grid))
-            dh = hamildiff(sim.grid, simm.Jmap, s)
+            dh = hamildiff(simm.grid, simm.Jmap, s)
 
             simm.trans[i] = if rand() < exp(-simm.βmap[s]*dh)
                 flipspin!(simm.grid, s)
@@ -69,7 +69,8 @@ macro simulate!(sim)
                 Nullable{Int}()
             end
         end
-        sim
+
+        simm
     end
 end
 
@@ -83,7 +84,7 @@ macro simulate!(sim, body)
     body = body.args[3:end]
 
     quote
-        simm = $sim
+        simm = ($sim)::Simulation
         for i = 2:endof(simm.trans)
             $s_sym = rand(1:endof(simm.grid))
             $dh_sym = hamildiff(simm.grid, simm.Jmap, s)
@@ -97,6 +98,7 @@ macro simulate!(sim, body)
 
             $(body...)
         end
+
         simm
     end
 end
@@ -118,7 +120,7 @@ function rangedβ{T<:Number}(isize::Int, jsize::Int, βr::Range{T};
     end
 end
 
-function inverseJ(isize::Int, jsize::Int, trans::Int, J_pow::Int, β::Number;
+function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Number, trans::Int;
                   initspin::Spin=SPIN_DOWN, p_spin=Nullable{Float64}())
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
 
