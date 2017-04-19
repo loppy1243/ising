@@ -133,8 +133,8 @@ function Base.start(iter::NeighborhoodIndexIter)
 end
 
 function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
-    dist = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
     while true
+        dist = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
         if state != iter.current && dist <= iter.n
             return (modindex(iter.gridsize, state), (state[1] + 1, state[2]))
         elseif state[1] > iter.current[1]
@@ -144,8 +144,6 @@ function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
         else
             state = (state[1] + 1, state[2])
         end
-
-        dist = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
     end
 end
 
