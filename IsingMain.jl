@@ -57,13 +57,13 @@ end
 
 macro simulate!(sim)
     quote
-        sim = $sim
-        for i = 2:endof(sim.trans)
-            s = rand(1:endof(sim.grid))
-            dh = hamildiff(sim.grid, sim.Jmap, s)
+        simm = $sim
+        for i = 2:endof(simm.trans)
+            s = rand(1:endof(simm.grid))
+            dh = hamildiff(sim.grid, simm.Jmap, s)
 
-            sim.trans[i] = if rand() < exp(-sim.βmap[s]*dh)
-                flipspin!(sim.grid, s)
+            simm.trans[i] = if rand() < exp(-simm.βmap[s]*dh)
+                flipspin!(simm.grid, s)
                 Nullable{Int}(s)
             else
                 Nullable{Int}()
