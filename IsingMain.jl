@@ -22,92 +22,122 @@ immutable Simulation
     # Maps a spin site to its β.
     βmap::Array{Float64, 2}
 
-    Simulation(init::SpinGrid, trans::Int, Jmap::Array{Array{Float64, 2}, 2}, βmap::Array{Float64, 1})
+    function Simulation(init::SpinGrid, trans::Int, Jmap::Function, βmap::Array{Float64, 2})
         trans = Array{Nullable{Int}, 1}(trans+1)
-        trans[1] = init
-        new(init, copy(init), Jmap, βmap)
+        trans[1] = Nullable{Int}()
+        new(init, copy(init), trans, Jmap, βmap)
     end
 end
 
 function (::Type{Simulation})(init::SpinGrid, trans::Int, J::Number, β::Number)
-    Simulation(init, trans, fill(fill(J, size(init)), size(init)), fill(β, size(init)))
+    Simulation(init, trans, (sg, i, j, k, l) -> J, fill(β, size(init)))
 end
 
-function (::Type{Simulation})(init::SpinGrid, trans::Int, Jmap::Array{Array{Float64, 2}, 2}, β::Number)
+function (::Type{Simulation})(init::SpinGrid, trans::Int, Jmap::Function, β::Number)
     Simulation(init, trans, Jmap, fill(β, size(init)))
 end
 
 function (::Type{Simulation})(init::SpinGrid, trans::Int, J::Number, βmap::Array{Float64, 2})
-    Simulation(init, trans, fill(fill(J, size(init)), size(init)), βmap)
+    Simulation(init, trans, (sg, i, j, k, l) -> J, βmap)
 end
 
 function main()
     print("Running simulation... ")
-    sim = rangedβ(100, 100, linspace(0.01, 1, 50000))
+    sim = rangedβ(300, 300, 0.01:0.001:1)
     println("Done.")
 
-    print("Writing raw video to file... ")
-    write("sim.raw", sim)
-    println("Done.")
+    #print("Writing raw video to file... ")
+    #write("sim.raw", sim)
+    #println("Done.")
 
-    println("Rendering video...")
-    render(sim, 100, "sim.raw", "sim.mp4")
-    println("Done.")
+    #println("Rendering video...")
+    #render(sim, 100, "sim.raw", "sim.mp4")
+    #println("Done.")
 end
 
-function simulate!(sim::Simulation)
-    simulate!(x -> nothing, sim)
-end
+macro simulate!(sim)
+    quote
+        sim = $sim
+        for i = 2:endof(sim.trans)
+            s = rand(1:endof(sim.grid))
+            dh = hamildiff(sim.grid, sim.Jmap, s)
 
-function simulate!(update::Function, sim::Simulation)
-    for i = 1:endof(sim.trans)-1
-        update(i)
-        s = rand(1:endof(sim.grid))
-        aff = spinflipaff(sg, β, J, s)
-
-        sim.trans[i+1] = if rand() < exp(aff)
-            transpin!(sim.grid, s)
-            Nullable(pos)
-        else
-            Nullable{NTuple{2, Int}}()
+            sim.trans[i] = if rand() < exp(-sim.βmap[s]*dh)
+                flipspin!(sim.grid, s)
+                Nullable{Int}(s)
+            else
+                Nullable{Int}()
+            end
         end
+        sim
     end
+end
 
-    sim
+macro simulate!(sim, body)
+    @assert body.head == :block            &&
+            body.args[2].head == :tuple    &&
+            length(body.args[2].args) == 2
+              
+    s_sym = body.args[2].args[1]
+    dh_sym = body.args[2].args[2]
+    body = body.args[3:end]
+
+    quote
+        simm = $sim
+        for i = 2:endof(simm.trans)
+            $s_sym = rand(1:endof(simm.grid))
+            $dh_sym = hamildiff(simm.grid, simm.Jmap, s)
+
+            simm.trans[i] = if rand() < exp(-simm.βmap[$s_sym]*$dh_sym)
+                flipspin!(simm.grid, $s_sym)
+                Nullable{Int}($s_sym)
+            else
+                Nullable{Int}()
+            end
+
+            $(body...)
+        end
+        simm
+    end
 end
 
 function constantβ(isize::Int, jsize::Int, β::Number, trans::Int;
                    initspin::Spin=SPIN_DOWN, J::Number=1.0, p_spin=Nullable{Float64}())
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
-    sim = Simulation(init_sg, trans, J, β)
 
-    simulate!(sim, trans)
+    @simulate! Simulation(init_sg, trans, J, β)
 end
 
-function rangedβ(isize::Int, jsize::Int, βr::Range{Number};
-                 initspin::Spin=SPIN_DOWN, J::Number=1.0, p_spin=Nullable{Float64}())
+function rangedβ{T<:Number}(isize::Int, jsize::Int, βr::Range{T};
+                            initspin::Spin=SPIN_DOWN, J::Number=1.0, p_spin=Nullable{Float64}())
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
     sim = Simulation(init_sg, length(βr), J, βr.start)
 
-    simulate!(sim) do _
+    @simulate! sim begin s, dh
         sim.βmap .+= βr.step
     end
 end
 
-function inverseJ(isize::Int, jsize::Int, β::Number, J_pow::Int;
+function inverseJ(isize::Int, jsize::Int, trans::Int, J_pow::Int, β::Number;
                   initspin::Spin=SPIN_DOWN, p_spin=Nullable{Float64}())
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
+
+    function Jmap(sg::SpinGrid, i::Int, j::Int, k::Int, l::Int)
+        hypot(i - k, j - l)^J_pow
+    end
+
+    @simulate! Simulation(init_sg, trans, Jmap, β)
 end
 
 function Base.write(stream::IO, sim::Simulation)
     sim.grid .= sim.init
 
-    sum(sim.trans) do f
-        if !isnull(f)
-            transpin!(sg, get(f)...)
+    sum(sim.trans) do s
+        if !isnull(s)
+            flipspin!(sim.grid, get(s))
         end
     
-        write(stream, sg)
+        write(stream, sim.grid)
     end
 end
 

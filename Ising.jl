@@ -1,7 +1,7 @@
 module Ising
 using Unitful
 export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, flipspin!,
-       spinflipaff, MaybeRandomSpinGrid
+       hamildiff, MaybeRandomSpinGrid
 
 const SPIN_UP = true
 const SPIN_DOWN = false
@@ -39,11 +39,11 @@ function RandomSpinGrid(s::Spin, p_spin::Number, isize::Int, jsize::Int)
     SpinGrid(rand(Bool) < p_spinup ? s : flipspin(s) for i = 1:isize, j = 1:jsize)
 end
 
-function MaybeRandomSpinGrid(s::Spin, p_spin=Nullable{Float64}(), isize::Int, jsize::Int)
+function MaybeRandomSpinGrid(s::Spin, p_spin::Nullable{Float64}, isize::Int, jsize::Int)
     if isnull(p_spin)
-        RandomSpinGrid(s, p_spin, isize, jsize)
-    else
         SpinGrid(s, isize, jsize)
+    else
+        RandomSpinGrid(s, get(p_spin), isize, jsize)
     end
 
 end
@@ -57,6 +57,7 @@ end
 
 flipspin(s::Spin) = !s
 flipspin!(sg::SpinGrid, i::Int, j::Int) = (sg[i, j] = flipspin(sg[i, j]))
+flipspin!(sg::SpinGrid, ixl::Int) = flipspin!(sg, ind2sub(sg, ixl)...)
 
 Base.size(sg::SpinGrid) = size(sg.array)
 Base.length(sg::SpinGrid) = length(sg.array)
@@ -76,7 +77,15 @@ end
     end
 end
 
+function modindex{N}(dims::NTuple{N, Int}, ixs::NTuple{N, Int})
+    modindex(dims, ixs...)
+end
+
 function modindex{T, N}(a::AbstractArray{T, N}, ixs::Vararg{Int, N})
+    modindex(size(a), ixs...)
+end
+
+function modindex{T, N}(a::AbstractArray{T, N}, ixs::NTuple{N, Int})
     modindex(size(a), ixs...)
 end
 
@@ -86,6 +95,10 @@ end
     quote
         a[$((:($(js(i)) == 0 ? size(a, $i) : $(js(i))) for i = 1:N)...)]
     end
+end
+
+function modgetindex{T, N}(a::AbstractArray{T, N}, ixs::NTuple{N, Int})
+    modgetindex(a, ixs...)
 end
 
 #modindex{N}(x, ixs::NTuple{N, Int}) = modindex(x, ixs...)
@@ -103,8 +116,16 @@ immutable NeighborhoodIndexIter
     n::Int
 end
 
-function neighborhood(sg::SpinGrid, i::Int, j::Int, n::Int)
+function neighborhood(sg::SpinGrid, n::Int, i::Int, j::Int)
     NeighborhoodIndexIter(sg, (i, j), (i-n, j-n), (i+n, j+n), n)
+end
+
+function neighborhood(sg::SpinGrid, n::Int, ixs::NTuple{2, Int})
+    neighborhood(sg, n, ixs...)
+end
+
+function neighborhood(sg::SpinGrid, n::Int, ixl::Int)
+    neighborhood(sg, n, ind2sub(sg, ixl)...)
 end
 
 function Base.start(iter::NeighborhoodIndexIter)
@@ -128,7 +149,7 @@ function Base.done(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
     state[2] > iter.ending[2]
 end
 
-function hamil(sg::SpinGrid, J::Number)
+function hamil(sg::SpinGrid, J::Function)
     visited = falses(size(sg))
 
     sum = 0.0
@@ -142,29 +163,41 @@ function hamil(sg::SpinGrid, J::Number)
                 continue
             end
 
-            sum += sg[i] $ sg[jxs...]
+            sum += J(sg, ind2sub(sg, i)..., jxs...) * (sg[i] $ sg[jxs...])
         end
         visited[i] = true
     end
 
-    -J*sum
+    # Please don't forget the minus sign here.
+    -sum
 end
 
-function localhamil(sg::SpinGrid, J::Number, i::Int, j::Int)
-    -J * sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
-        sg[i, j] $ sg[ixs...]
-    end
+function localhamil(sg::SpinGrid, J::Function, ixs::NTuple{2, Int})
+    localhamil(sg, J, ixs...)
 end
 
-logprob(sg::SpinGrid) = -INV_TEMP*hamil(sg)
+function localhamil(sg::SpinGrid, J::Function, i::Int, j::Int)
+    # Please don't forget the minus sign here.
+    -(sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
+        (#=J(sg, i, j, ixs...) * =#(sg[i, j] $ sg[ixs...]))
+    end)
+end
 
-function spinflipaff(sg::SpinGrid, β::Number, J::Number, i::Int, j::Int)
+function localhamil(sg::SpinGrid, J::Function, ixl::Int)
+    localhamil(sg, J, ind2sub(sg, ixl)...)
+end
+
+function hamildiff(sg::SpinGrid, J::Function, i::Int, j::Int)::Float64
     h1 = localhamil(sg, J, i, j)
     flipspin!(sg, i, j)
     h2 = localhamil(sg, J, i, j)
     flipspin!(sg, i, j)
 
-    -β*(h2 - h1)
+    h2 - h1
+end
+
+function hamildiff(sg::SpinGrid, J::Function, ixl::Int)
+    hamildiff(sg, J, ind2sub(sg, ixl)...)
 end
 
 end # Ising
