@@ -1,7 +1,7 @@
 module Ising
 using Unitful
 export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, logprob,
-       spinflipaff
+       spinflipaff, spinflipaff_invJ
 
 const SPIN_UP = true
 const SPIN_DOWN = false
@@ -147,12 +147,28 @@ function localhamil(sg::SpinGrid, J::Number, i::Int, j::Int)
     end
 end
 
+function localhamil_invJ(sg::SpinGrid, J_pow::Int, i::Int, j::Int)
+    -sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
+        J = hypot(i - ixs[1], j - ixs[2])^J_pow
+        J*(sg[i, j] $ sg[ixs...])
+    end
+end
+
 logprob(sg::SpinGrid) = -INV_TEMP*hamil(sg)
 
 function spinflipaff(sg::SpinGrid, β::Number, J::Number, i::Int, j::Int)
     h1 = localhamil(sg, J, i, j)
     flipspin(sg, i, j)
     h2 = localhamil(sg, J, i, j)
+    flipspin(sg, i, j)
+
+    -β*(h2 - h1)
+end
+
+function spinflipaff_invJ(sg::SpinGrid, β::Number, J_pow::Int, i::Int, j::Int)
+    h1 = localhamil_invJ(sg, J_pow, i, j)
+    flipspin(sg, i, j)
+    h2 = localhamil_invJ(sg, J_pow, i, j)
     flipspin(sg, i, j)
 
     -β*(h2 - h1)

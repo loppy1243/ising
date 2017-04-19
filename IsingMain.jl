@@ -20,7 +20,7 @@ end
 
 function main()
     print("Running simulation... ")
-    sim = rangedβ(100, 100, linspace(0.01, 1, 50000))
+    sim = inverseJ(100, 100, 2, 1e-10, 150000)
     println("Done.")
 
     print("Writing raw video to file... ")
@@ -63,6 +63,27 @@ function rangedβ(isize::Int, jsize::Int, iter; initspin::Spin=SPIN_DOWN, J::Num
     for (i, β) in enumerate(iter)
         pos = ind2sub(sg, rand(1:endof(sg)))
         aff = spinflipaff(sg, β, J, pos...)
+
+        states[i+1] = if aff > 0 || rand() < exp(aff)
+            flipspin(sg, pos...)
+            Nullable(pos)
+        else
+            Nullable{NTuple{2, Int}}()
+        end
+    end
+
+    Simulation(init_sg, states)
+end
+
+function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Number, trans::Int; initspin::Spin=SPIN_DOWN)
+    init_sg = SpinGrid(initspin, isize, jsize)
+    sg = copy(init_sg)
+    states = Array{Nullable{NTuple{2, Int}}, 1}(trans + 1)
+    states[1] = Nullable{NTuple{2, Int}}()
+
+    for i = 1:trans
+        pos = ind2sub(sg, rand(1:endof(sg)))
+        aff = spinflipaff_invJ(sg, β, J_pow, pos...)
 
         states[i+1] = if aff > 0 || rand() < exp(aff)
             flipspin(sg, pos...)
