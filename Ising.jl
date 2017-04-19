@@ -109,7 +109,7 @@ end
 #end
 
 immutable NeighborhoodIndexIter
-    grid::SpinGrid
+    gridsize::NTuple{2, Int}
     current::NTuple{2, Int}
     start::NTuple{2, Int}
     ending::NTuple{2, Int}
@@ -117,7 +117,7 @@ immutable NeighborhoodIndexIter
 end
 
 function neighborhood(sg::SpinGrid, n::Int, i::Int, j::Int)
-    NeighborhoodIndexIter(sg, (i, j), (i-n, j-n), (i+n, j+n), n)
+    NeighborhoodIndexIter(size(sg), (i, j), (i-n, j-n), (i+n, j+n), n)
 end
 
 function neighborhood(sg::SpinGrid, n::Int, ixs::NTuple{2, Int})
@@ -133,23 +133,24 @@ function Base.start(iter::NeighborhoodIndexIter)
 end
 
 function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
-    h = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
-
+    dist = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
     while true
-        if state != iter.current && h <= iter.n
-            return (modindex(iter.grid, state), (state[1] + 1, state[2]))
+        if state != iter.current && dist <= iter.n
+            return (modindex(iter.gridsize, state), (state[1] + 1, state[2]))
         elseif state[1] > iter.current[1]
             state = (iter.start[1], state[2] + 1)
-        elseif state[2] <= iter.ending[2]
-            state = (state[1] + 1, state[2])
+        elseif state[2] > iter.ending[2]
+            throw("IMPOSSIBLE")
         else
-            return ((0, 0), (0, state[2]))
+            state = (state[1] + 1, state[2])
         end
+
+        dist = hypot(state[1] - iter.current[1], state[2] - iter.current[2])
     end
 end
 
 function Base.done(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
-    state[2] > iter.ending[2]
+    state[2] == iter.ending[2] && state[1] > iter.current[1]
 end
 
 function hamil(sg::SpinGrid, J::Function)
@@ -161,7 +162,7 @@ function hamil(sg::SpinGrid, J::Function)
             continue
         end
 
-        for jxs in neighborhood(sg, ind2sub(sg, i)..., NEIGH_SIZE)
+        for jxs in neighborhood(sg, NEIGH_SIZE, ind2sub(sg, i)...)
             if visited[jxs...]
                 continue
             end
@@ -181,7 +182,7 @@ end
 
 function localhamil(sg::SpinGrid, J::Array{Float64, 2}, i::Int, j::Int)
     # Please don't forget the minus sign here.
-    -(sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
+    -(sum(neighborhood(sg, NEIGH_SIZE, i, j)) do ixs
         (J[ixs...] * (sg[i, j] $ sg[ixs...]))
     end)
 end
