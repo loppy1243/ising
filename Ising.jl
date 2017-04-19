@@ -137,7 +137,7 @@ function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
 
     while true
         if state != iter.current && h <= iter.n
-            return (modindex(iter.grid, state...), (state[1] + 1, state[2]))
+            return (modindex(iter.grid, state), (state[1] + 1, state[2]))
         elseif state[1] > iter.current[1]
             state = (iter.start[1], state[2] + 1)
         elseif state[2] <= iter.ending[2]
@@ -175,28 +175,39 @@ function hamil(sg::SpinGrid, J::Function)
     -sum
 end
 
-function localhamil(sg::SpinGrid, J::Function, ixs::NTuple{2, Int})
+function localhamil(sg::SpinGrid, J::Array{Float64, 2}, ixs::NTuple{2, Int})
     localhamil(sg, J, ixs...)
 end
 
-function localhamil(sg::SpinGrid, J::Function, i::Int, j::Int)
+function localhamil(sg::SpinGrid, J::Array{Float64, 2}, i::Int, j::Int)
     # Please don't forget the minus sign here.
     -(sum(neighborhood(sg, i, j, NEIGH_SIZE)) do ixs
-        (J(sg, i, j, ixs...) * (sg[i, j] $ sg[ixs...]))
+        (J[ixs...] * (sg[i, j] $ sg[ixs...]))
     end)
 end
 
-function localhamil(sg::SpinGrid, J::Function, ixl::Int)
+function localhamil(sg::SpinGrid, J::Array{Float64, 2}, ixl::Int)
     localhamil(sg, J, ind2sub(sg, ixl)...)
 end
 
-function hamildiff(sg::SpinGrid, J::Function, i::Int, j::Int)
+let Jinit = true, J = Array{Float64, 2}()
+global hamildiff
+function hamildiff(sg::SpinGrid, Jmap::Function, i::Int, j::Int)
+    if Jinit
+        J = Array{Float64, 2}(size(sg))
+    end
+
+    for ixl = 1:endof(J)
+        J[ixl] = Jmap(sg, i, j, ind2sub(sg, ixl)...)
+    end
+
     h1 = localhamil(sg, J, i, j)
     flipspin!(sg, i, j)
     h2 = localhamil(sg, J, i, j)
     flipspin!(sg, i, j)
 
     h2 - h1
+end
 end
 
 function hamildiff(sg::SpinGrid, J::Function, ixl::Int)

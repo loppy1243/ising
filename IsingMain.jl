@@ -43,7 +43,7 @@ end
 
 function main()
     print("Running simulation... ")
-    sim = inverseJ(100, 100, -2, 1e-10, 150000)
+    sim = inverseJ(50, 50, -2, 1e-10, 150000)
     println("Done.")
 
     #print("Writing raw video to file... ")
