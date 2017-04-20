@@ -20,7 +20,7 @@ end
 
 function main()
     print("Running simulation... ")
-    sim = inverseJ(100, 100, 2, 1e-10, 150000)
+    sim = βflow_inverseJ(100, 100, -2, 1.0, 150000)
     println("Done.")
 
     print("Writing raw video to file... ")
@@ -91,6 +91,66 @@ function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Number, trans::Int; in
         else
             Nullable{NTuple{2, Int}}()
         end
+    end
+
+    Simulation(init_sg, states)
+end
+
+function βflow(isize::Int, jsize::Int, J::Number, β0::Number, trans::Int; initspin::Spin=SPIN_DOWN)
+    init_sg = SpinGrid(initspin, isize, jsize)
+    sg = copy(init_sg)
+    βmap = fill(β0, isize, jsize)
+    states = Array{Nullable{NTuple{2, Int}}, 1}(trans + 1)
+    states[1] = Nullable{NTuple{2, Int}}()
+    area = floor(pi*NEIGH_SIZE^2)
+
+    for i = 1:trans
+        pos = ind2sub(sg, rand(1:endof(sg)))
+        dh = hamildiff(sg, J, pos...)
+
+        states[i+1] = if dh > 0 || rand() < exp(-βmap[pos...]*dh)
+            flipspin(sg, pos...)
+
+            βmap[pos...] -= dh
+            for ixs in neighborhood(sg, pos..., NEIGH_SIZE)
+                βmap[ixs...] = 1/(1/βmap[ixs...] + dh / area)
+            end
+
+            Nullable(pos)
+        else
+            Nullable{NTuple{2, Int}}()
+        end
+
+    end
+
+    Simulation(init_sg, states)
+end
+
+function βflow_inverseJ(isize::Int, jsize::Int, J_pow::Int, β0::Number, trans::Int; initspin::Spin=SPIN_DOWN)
+    init_sg = SpinGrid(initspin, isize, jsize)
+    sg = copy(init_sg)
+    βmap = fill(β0, isize, jsize)
+    states = Array{Nullable{NTuple{2, Int}}, 1}(trans + 1)
+    states[1] = Nullable{NTuple{2, Int}}()
+    area = floor(pi*NEIGH_SIZE^2)
+
+    for i = 1:trans
+        pos = ind2sub(sg, rand(1:endof(sg)))
+        dh = hamildiff_inverseJ(sg, J_pow, pos...)
+
+        states[i+1] = if dh > 0 || rand() < exp(-βmap[pos...]*dh)
+            flipspin(sg, pos...)
+
+            βmap[pos...] -= dh
+            for ixs in neighborhood(sg, pos..., NEIGH_SIZE)
+                βmap[ixs...] = 1/(1/βmap[ixs...] + dh / area)
+            end
+
+            Nullable(pos)
+        else
+            Nullable{NTuple{2, Int}}()
+        end
+
     end
 
     Simulation(init_sg, states)

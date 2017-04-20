@@ -1,7 +1,7 @@
 module Ising
 using Unitful
 export Spin, SpinGrid, RandomSpinGrid, spinup, spindown, SPIN_UP, SPIN_DOWN, flipspin, logprob,
-       spinflipaff, spinflipaff_invJ
+       spinflipaff, spinflipaff_invJ, NEIGH_SIZE, hamildiff, neighborhood, hamildiff_inverseJ
 
 const SPIN_UP = true
 const SPIN_DOWN = false
@@ -116,7 +116,7 @@ function Base.next(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
 end
 
 function Base.done(iter::NeighborhoodIndexIter, state::NTuple{2, Int})
-    state[2] > iter.ending[2]
+    state[2] > iter.ending[2] || (state[2] == iter.ending[2] && state[1] > iter.current[1])
 end
 
 function hamil(sg::SpinGrid, J::Number)
@@ -172,6 +172,24 @@ function spinflipaff_invJ(sg::SpinGrid, β::Number, J_pow::Int, i::Int, j::Int)
     flipspin(sg, i, j)
 
     -β*(h2 - h1)
+end
+
+function hamildiff(sg::SpinGrid, J::Number, i::Int, j::Int)
+    h1 = localhamil(sg, J, i, j)
+    flipspin(sg, i, j)
+    h2 = localhamil(sg, J, i, j)
+    flipspin(sg, i, j)
+
+    h2 - h1
+end
+
+function hamildiff_inverseJ(sg::SpinGrid, J_pow::Int, i::Int, j::Int)
+    h1 = localhamil_invJ(sg, J_pow, i, j)
+    flipspin(sg, i, j)
+    h2 = localhamil_invJ(sg, J_pow, i, j)
+    flipspin(sg, i, j)
+
+    h2 - h1
 end
 
 end # Ising
