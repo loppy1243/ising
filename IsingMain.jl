@@ -20,7 +20,7 @@ end
 
 function main()
     print("Running simulation... ")
-    sim = βflow_inverseJ(100, 100, -2, 1.0, 150000)
+    sim = inverseJ(100, 100, -2, 1e-1, 150000)
     println("Done.")
 
     print("Writing raw video to file... ")
@@ -83,6 +83,7 @@ function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Number, trans::Int; in
 
     for i = 1:trans
         pos = ind2sub(sg, rand(1:endof(sg)))
+
         aff = spinflipaff_invJ(sg, β, J_pow, pos...)
 
         states[i+1] = if aff > 0 || rand() < exp(aff)
