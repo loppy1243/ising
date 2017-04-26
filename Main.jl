@@ -1,11 +1,15 @@
 include("includes.jl")
 
+"""
+A Monte Carlo simulation following the Ising model without magnetic field.
+"""
 module IsingMain
 import SpinMod
 using SimulationMod, SpinMod
 
 function main()
     print("Running simulation... ")
+    # Choose the simulation to run here.
     sim = inverseJ(100, 100, -2, 1e-10, 150000)
     println("Done.")
 
@@ -18,16 +22,31 @@ function main()
     println("Done.")
 end
 
-function constantβ(isize::Int, jsize::Int, β::Number, trans::Int;
-                   initspin::Spin=SPIN_DOWN, J::Number=1.0, p_spin=Nullable{Float64}(),
+"""
+    constantβ(isize, jsize, β, trans; initspin=SPIN_DOWN, J=1.0, p_spin=Nullable(), neigh_size=6)
+
+Construct and run a simulation over `trans` transitions with an `isize` by `jsize` grid, constant
+``β`` and ``J``, and a neighborhood size of `neigh_size`.
+
+`initspin` specifies the initial spin state of the system. If `p_spin` is not `Nullable()`, then the
+simulation grid is initialized randomly with a given site having probability `p_spin` of being in
+state `initspin`.
+"""
+function constantβ(isize::Int, jsize::Int, β::Real, trans::Int;
+                   initspin::Spin=SPIN_DOWN, J::Real=1.0, p_spin=Nullable{Float64}(),
                    neigh_size::Int=6)
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
 
     @simulate! Simulation(init_sg, neigh_size, trans, J, β)
 end
 
-function rangedβ{T<:Number}(isize::Int, jsize::Int, βr::Range{T};
-                            initspin::Spin=SPIN_DOWN, J::Number=1.0, p_spin=Nullable{Float64}(),
+"""
+    rangedβ(isize, jsize, βr::Range; initspin=SPIN_DOWN, J=1.0, p_spin=Nullable(), neigh_size=6)
+
+Similar to `constantβ`, except for each transition of the system ``β`` steps through `βr`.
+"""
+function rangedβ{T<:Real}(isize::Int, jsize::Int, βr::Range{T};
+                            initspin::Spin=SPIN_DOWN, J::Real=1.0, p_spin=Nullable{Float64}(),
                             neigh_size::Int=6)
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
     sim = Simulation(init_sg, neigh_size, length(βr), J, βr.start)
@@ -37,7 +56,16 @@ function rangedβ{T<:Number}(isize::Int, jsize::Int, βr::Range{T};
     end
 end
 
-function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Number, trans::Int;
+"""
+    inverseJ(isize, jsize, J_pow, β, trans; initspin=SPIN_DOWN, p_spin=Nullable(), neigh_size=6)
+
+Similar to `constantβ`, except J now depends on the `J_pow`-th power of the distance between two
+interacting sites.
+
+For one site with indices `(i, j)` and another with indices `(k, l)`, the interaction
+strength between them is ``J = ((i-k)^2 + (j-l)^2)^{\frac{\text{J\_pow}}{2}}``.
+"""
+function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Real, trans::Int;
                   initspin::Spin=SPIN_DOWN, p_spin=Nullable{Float64}(), neigh_size::Int=6)
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
 
@@ -48,8 +76,18 @@ function inverseJ(isize::Int, jsize::Int, J_pow::Int, β::Number, trans::Int;
     @simulate! Simulation(init_sg, neigh_size, trans, Jmap, β)
 end
 
-function βflow(isize::Int, jsize::Int, J::Float64, β0::Number, trans::Int;
-               initspin::Spin=SPIN_DOWN, p_spin=Nullable{Float64}(), neigh_size::Int=6)
+
+"""
+    βflow(isize, jsize, β0, trans; initspin=SPIN_DOWN, J=1.0, p_spin=Nullable(), neigh_size=6)
+
+Similar to `constantβ`, except every spin site has its own ``β`` which models a flow of energy.
+
+Each spin site starts with ``β = \text{β0}``. If a site transitions, then it evenly divides the
+resulting change in the Hamiltonian amongst its neighbors and adds that to each of their ``β``.
+"""
+function βflow(isize::Int, jsize::Int, β0::Real, trans::Int;
+               initspin::Spin=SPIN_DOWN, J::Real=1.0, p_spin=Nullable{Float64}(),
+               neigh_size::Int=6)
     init_sg = MaybeRandomSpinGrid(initspin, p_spin, isize, jsize)
     sim = Simulation(init_sg, neigh_size, trans, J, β0)
 
@@ -62,4 +100,5 @@ end
 
 end # IsingMain
 
+# Run the program if we're not at the REPL.
 if !isinteractive(); IsingMain.main() end
