@@ -10,7 +10,7 @@ using SimulationMod, SpinMod
 function main()
     print("Running simulation... ")
     # Choose the simulation to run here.
-    sim = inverseJ(100, 100, -2, 1e-10, 150000)
+    sim = inverseJ(20, 20, -2, 1e-10, 150000)
     println("Done.")
 
     print("Writing raw video to file... ")
