@@ -3,7 +3,10 @@ Submodule of SpinMod. Exports a function that returns an iterator over the neigh
 site in a SpinGrid.
 """
 module Neighborhood
-import Loppy.Indexing.modindex
+# I Had moved this to an its own module, but it's not necessary in this version.
+#import Loppy.Indexing.modindex
+# This is the replacement.
+import ModIndex.modindex
 using SpinMod
 
 """

@@ -4,7 +4,10 @@
 All spin related stuff.
 """
 module SpinMod
-import Loppy.Indexing.modindex, Loppy.Indexing.modgetindex
+# I Had moved this to an its own module, but it's not necessary in this version.
+#import Loppy.Indexing.modindex, Loppy.Indexing.modgetindex
+# This is the replacement.
+import ModIndex.modindex, ModIndex.modgetindex
 
 export SPIN_UP, SPIN_DOWN
 const SPIN_UP = true
