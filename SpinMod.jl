@@ -17,13 +17,13 @@ export Spin
 """
 Represents spin-up or spin-down. Canonically, these are true and false, respectively.
 """
-typealias Spin Bool
+const Spin = Bool
 
 export SpinGrid
 """
 A grid of spin states.
 """
-immutable SpinGrid <: AbstractArray{Spin, 2}
+struct SpinGrid <: AbstractArray{Spin, 2}
     array::BitArray{2}
 
     """
