@@ -17,9 +17,10 @@ immutable Simulation
     neigh_size::Int
     # An array of the (linear) indices of the spin sites that get flipped in chronological order.
     # Always starts with Nullable() to represent the initial state.
-    trans::Array{Nullable{Int}, 1}
+    trans::Vector{Nullable{Int}}
     # Maps two spin sites to their interaction strength. Should have the signature
     #     Jmap(::SpinGrid, ::Int, ::Int, ::Int, ::Int)
+    # TODO: This is probably better as an AbstractArray
     Jmap::Function
     # Maps a spin site to its inverse temperature.
     βmap::Array{Float64, 2}
@@ -33,7 +34,7 @@ immutable Simulation
     """
     function Simulation(init::SpinGrid, neigh_size::Int, trans::Int, Jmap::Function,
                         βmap::Array{Float64, 2})
-        trans = Array{Nullable{Int}, 1}(trans+1)
+        trans = Vector{Nullable{Int}}(trans+1)
         trans[1] = Nullable{Int}()
         new(init, copy(init), neigh_size, trans, Jmap, βmap)
     end
@@ -68,24 +69,15 @@ Write out H264 video of the simulation to `outfile` as an MP4 file.
 This is accomplished by writing out a raw RGB video and then using `ffmpeg` to convert. `tps`
 is the number of real-time transitions per second, i.e., the simulation speed.
 """
-function render(sim::Simulation, tps::Int, outfile::AbstractString)
-    # ffmpeg command:
-    # ffmpeg -f rawvideo # Input codec.
-    #        -pix_fmt rgb24 # Pixel format.
-    #        -video_size ${IMG_WIDTH}x${IMG_HEIGHT} # Frame size.
-    #        -framerate ${1/DURATION} # This tells ffmpeg what the simulation speed is.
-    #        -i sim.raw # Raw video input file.
-    #        -frames ${TRANS} # +1 because of the initial state of the world.
-    #        -f h264 # Output codec.
-    #        -r 24 # Output framerate.
-    #        -y sim.mp4 # Output file (-y is overwrite).
-
+function write_mp4(sim::Simulation, tps::Int, outfile::AbstractString)
     mktemp() do rawfile, rawfile_stream
         ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pixel_format rgb24
                          -video_size $(size(sim.init, 2))x$(size(sim.init, 1))
                          -framerate $(tps) -i $(rawfile) -frames $(length(sim.trans)) -f h264
                          -r 24 -y $(outfile)`
         write(rawfile_stream, sim)
+        flush(rawfile_stream)
+
         run(ffmpeg)
     end
 end

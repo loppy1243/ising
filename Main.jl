@@ -10,11 +10,11 @@ using SimulationMod, SpinMod
 function main()
     print("Running simulation... ")
     # Choose the simulation to run here.
-    sim = inverseJ(20, 20, -2, 1e-10, 15000)
+    sim = constantβ(20, 20, 1e15, 15000)
     println("Done.")
 
     print("Writing video as mp4...")
-    SimulationMod.write_mp4(sim, 100, "sim.mp4")
+    SimulationMod.write_mp4(sim, 400, "sim.mp4")
     println("Done.")
 end
 
