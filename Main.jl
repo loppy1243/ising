@@ -1,4 +1,7 @@
-include("includes.jl")
+include("modindex.jl")
+include("SpinMod.jl")
+include("Ising.jl")
+include("SimulationMod.jl")
 
 """
 A Monte Carlo simulation following the Ising model without magnetic field.
