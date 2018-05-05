@@ -61,14 +61,15 @@ function Base.write(stream::IO, sim::Simulation)
 end
 
 """
-    render(sim::Simulation, tps::Int, infile, outfile)
+    write_mp4(sim::Simulation, tps::Int, outfile)
 
-Create a video in `infile` of `sim` given that it has already been written to `infile`.
+Write out H264 video of the simulation to `outfile` as an MP4 file.
 
-`tps` is the number of real-time tranistions per second, i.e., the simulation speed.
+This is accomplished by writing out a raw RGB video and then using `ffmpeg` to convert. `tps`
+is the number of real-time transitions per second, i.e., the simulation speed.
 """
-function render(sim::Simulation, tps::Int, infile::AbstractString, outfile::AbstractString)
-    # ffmpeg rendering command:
+function render(sim::Simulation, tps::Int, outfile::AbstractString)
+    # ffmpeg command:
     # ffmpeg -f rawvideo # Input codec.
     #        -pix_fmt rgb24 # Pixel format.
     #        -video_size ${IMG_WIDTH}x${IMG_HEIGHT} # Frame size.
@@ -78,10 +79,15 @@ function render(sim::Simulation, tps::Int, infile::AbstractString, outfile::Abst
     #        -f h264 # Output codec.
     #        -r 24 # Output framerate.
     #        -y sim.mp4 # Output file (-y is overwrite).
-    ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pixel_format rgb24
-                     -video_size $(size(sim.init, 2))x$(size(sim.init, 1)) -framerate $(tps)
-                     -i $(infile) -frames $(length(sim.trans)) -f h264 -r 24 -y $(outfile)`
-    run(ffmpeg)
+
+    mktemp() do (rawfile, rawfile_stream)
+        ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pixel_format rgb24
+                         -video_size $(size(sim.init, 2))x$(size(sim.init, 1))
+                         -framerate $(tps) -i $(rawfile) -frames $(length(sim.trans)) -f h264
+                         -r 24 -y $(outfile)`
+        write(rawfile_stream, sim)
+        run(ffmpeg)
+    end
 end
 
 export @simulate!

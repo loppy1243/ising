@@ -10,15 +10,11 @@ using SimulationMod, SpinMod
 function main()
     print("Running simulation... ")
     # Choose the simulation to run here.
-    sim = inverseJ(20, 20, -2, 1e-10, 150000)
+    sim = inverseJ(20, 20, -2, 1e-10, 15000)
     println("Done.")
 
-    print("Writing raw video to file... ")
-    write("sim.raw", sim)
-    println("Done.")
-
-    println("Rendering video...")
-    SimulationMod.render(sim, 100, "sim.raw", "sim.mp4")
+    print("Writing video as mp4...")
+    SimulationMod.write_mp4(sim, 100, "sim.mp4")
     println("Done.")
 end
 
@@ -82,7 +78,7 @@ end
 
 Similar to `constantβ`, except every spin site has its own ``β`` which models a flow of energy.
 
-Each spin site starts with ``β = \text{β0}``. If a site transitions, then it evenly divides the
+Each spin site starts with ``β = \tt{β0}``. If a site transitions, then it evenly divides the
 resulting change in the Hamiltonian amongst its neighbors and adds that to each of their ``β``.
 """
 function βflow(isize::Int, jsize::Int, β0::Real, trans::Int;
