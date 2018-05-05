@@ -80,7 +80,7 @@ function render(sim::Simulation, tps::Int, outfile::AbstractString)
     #        -r 24 # Output framerate.
     #        -y sim.mp4 # Output file (-y is overwrite).
 
-    mktemp() do (rawfile, rawfile_stream)
+    mktemp() do rawfile, rawfile_stream
         ffmpeg = `ffmpeg -loglevel warning -f rawvideo -pixel_format rgb24
                          -video_size $(size(sim.init, 2))x$(size(sim.init, 1))
                          -framerate $(tps) -i $(rawfile) -frames $(length(sim.trans)) -f h264
