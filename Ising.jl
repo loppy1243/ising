@@ -54,12 +54,11 @@ localhamil(sg::SpinGrid, neigh_size::Int, J::Function, ixl::Int) =
 function localhamil(sg::SpinGrid, neigh_size::Int, J::Function, i::Int, j::Int)
     # Please don't forget the minus out front.
     #
-    # So you're probably wondering why the hell there's a $ floating around. Well, each site in sg
-    # is a Bool, but we want to treat them as +-1 and take the product of two of them; this is
-    # exactly analagous to xor-ing the two sites, and $ is the xor operator. The result then gets
-    # converted to an appropriate Integer to be multiplied by J().
+    # Each site in sg is a Bool, but we want to treat them as +-1 and take the product of two
+    # of them; this is exactly xor-ing the two sites. The result then gets converted to an
+    # appropriate Integer to be multiplied by J().
     -(sum(neighborhood(sg, neigh_size, i, j)) do ixs
-        (J(sg, i, j, ixs...) * (sg[i, j] $ sg[ixs...]))
+        (J(sg, i, j, ixs...) * xor(sg[i, j], sg[ixs...]))
     end)
 end
 
