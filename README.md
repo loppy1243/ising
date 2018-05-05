@@ -15,7 +15,7 @@ To run the program do
 ```
 % julia Main.jl
 ```
-if on `master  or
+if on `master` or
 ```
 % julia IsingMain.jl
 ```
